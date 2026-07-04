@@ -139,11 +139,17 @@ function M.export_stats(fields)
       result[k] = output[k]
     end
   end
-  local minionOutput = output.Minion
+  -- 小怪（召喚/幽魂）DPS：真實來源是 mainEnv.minion.output（headless BuildOutput 會建），
+  -- 而非 output.Minion（那是顯示層 infoTab 才建、headless 為 nil）。當主技能是小怪技能時
+  -- 玩家 output 的 TotalDPS/CombinedDPS 皆 0，DPS 全落在小怪 actor 上，須由此讀出。
+  local env = build.calcsTab and build.calcsTab.mainEnv
+  local minionOutput = (env and env.minion and env.minion.output)
+    or output.Minion -- 後備：若顯示層已建 output.Minion 也一併吃
   if minionOutput and type(minionOutput) == 'table' then
     local minionWanted = {
       "Life", "EnergyShield", "Armour", "Evasion",
-      "TotalDPS", "CombinedDPS", "AverageDamage", "Speed",
+      "TotalDPS", "CombinedDPS", "TotalDot", "AverageDamage", "Speed",
+      "WithPoisonDPS", "WithBleedDPS", "WithIgniteDPS", "BleedDPS", "IgniteDPS", "PoisonDPS",
       "FireResist", "ColdResist", "LightningResist", "ChaosResist",
       "BlockChance", "PhysicalDamageReduction",
     }
