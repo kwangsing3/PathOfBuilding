@@ -278,8 +278,20 @@ if os.getenv('POB_API_STDIO') == '1' or has_flag('--stdio') then
     mainObject.main:SetMode("BUILD", false, name or "", xmlText)
     runCallback("OnFrame")
   end
+  -- 走 PoB 原生 GGG-JSON 匯入路徑（ImportItemsAndSkills + ImportPassiveTreeAndJewels）。
+  -- 相對於 load_build_xml：此路徑能正確處理**天賦樹珠寶**（星團/永恆/一般珠寶的 socket、
+  -- 子圖展開、節點轉化），這是直接載入含 <Sockets> 的 build XML 在 headless 會弄壞樹的替代解法。
+  function loadBuildFromJSON(getItemsJSON, getPassiveSkillsJSON)
+    mainObject.main:SetMode("BUILD", false, "")
+    runCallback("OnFrame")
+    local bd = mainObject.main.modes["BUILD"]
+    local charData = bd.importTab:ImportItemsAndSkills(getItemsJSON)
+    bd.importTab:ImportPassiveTreeAndJewels(getPassiveSkillsJSON, charData)
+    runCallback("OnFrame")
+  end
   _G.newBuild = newBuild
   _G.loadBuildFromXML = loadBuildFromXML
+  _G.loadBuildFromJSON = loadBuildFromJSON
   _G.build = mainObject.main.modes["BUILD"]
 
   local srvPath = (POB_SCRIPT_DIR ~= '' and (POB_SCRIPT_DIR .. '/API/Server.lua')) or 'API/Server.lua'

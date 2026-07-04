@@ -122,6 +122,18 @@ handlers.load_build_xml = function(params)
   return { ok = true, build_id = 1 }
 end
 
+-- 走 PoB 原生 GGG-JSON 匯入（正確處理天賦樹珠寶）。params: { items=<get-items JSON>, passives=<get-passive-skills JSON> }
+handlers.load_build_json = function(params)
+  if not params or type(params.items) ~= 'string' or type(params.passives) ~= 'string' then
+    return { ok = false, error = 'missing items/passives JSON' }
+  end
+  if not _G.loadBuildFromJSON then
+    return { ok = false, error = 'headless wrapper not initialized' }
+  end
+  _G.loadBuildFromJSON(params.items, params.passives)
+  return { ok = true, build_id = 1 }
+end
+
 handlers.get_stats = function(params)
   local fields = params and params.fields or nil
   local stats, err = BuildOps.export_stats(fields)
