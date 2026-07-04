@@ -274,6 +274,34 @@ handlers.save_build = function(params)
   return { ok = true, result = res }
 end
 
+-- 來源查詢：回傳指定 mod 名的各來源貢獻（物品/天賦/技能）。唯讀。
+handlers.get_mod_sources = function(params)
+  local res, err = BuildOps.get_mod_sources(params and params.mods or {})
+  if not res then return { ok = false, error = err } end
+  return { ok = true, sources = res }
+end
+
+-- 資訊探索：列出 modDB 的 mod 名（可 pattern 過濾）。
+handlers.list_mods = function(params)
+  local res, err = BuildOps.list_mods(params or {})
+  if not res then return { ok = false, error = err } end
+  return { ok = true, mods = res }
+end
+
+-- 完整輸出：吐 mainOutput 全部可序列化純量欄位。
+handlers.get_full_output = function(params)
+  local res, err = BuildOps.get_full_output()
+  if not res then return { ok = false, error = err } end
+  return { ok = true, output = res }
+end
+
+-- 推導查詢：回傳指定 stat 的 CALCS breakdown。
+handlers.get_breakdown = function(params)
+  local res, err = BuildOps.get_breakdown(params and params.stats or {})
+  if not res then return { ok = false, error = err } end
+  return { ok = true, breakdown = res }
+end
+
 return {
   handlers = handlers,
   version_meta = version_meta,

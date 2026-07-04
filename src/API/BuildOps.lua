@@ -21,6 +21,102 @@ function M.get_main_output()
   return output
 end
 
+-- 讀 modDB：回傳指定 mod 名的各來源貢獻。純唯讀（不改 build）。
+-- 回傳 { {mod, value, type, source, flags, keywordFlags}, ... }；查無回空表。
+function M.get_mod_sources(modNames)
+  if not build or not build.calcsTab then return nil, 'build not initialized' end
+  if build.calcsTab.BuildOutput then build.calcsTab:BuildOutput() end
+  local env = build.calcsTab.mainEnv
+  local modDB = env and env.player and env.player.modDB
+  if not modDB or not modDB.mods then return nil, 'no modDB' end
+  local function safeVal(v)
+    local t = type(v)
+    if t == 'number' or t == 'boolean' or t == 'string' then return v end
+    if t == 'table' then return '[table]' end
+    return nil
+  end
+  local out = {}
+  for _, name in ipairs(modNames or {}) do
+    local list = modDB.mods[name]
+    if list then
+      for _, m in ipairs(list) do
+        table.insert(out, {
+          mod = name,
+          value = safeVal(m.value),
+          type = m.type,
+          source = m.source,
+          flags = m.flags,
+          keywordFlags = m.keywordFlags,
+        })
+      end
+    end
+  end
+  return out
+end
+
+-- 列出 modDB 所有 mod 名（可用 pattern 子字串過濾），附各自來源筆數。資訊探索用。
+function M.list_mods(params)
+  if not build or not build.calcsTab then return nil, 'build not initialized' end
+  if build.calcsTab.BuildOutput then build.calcsTab:BuildOutput() end
+  local env = build.calcsTab.mainEnv
+  local modDB = env and env.player and env.player.modDB
+  if not modDB or not modDB.mods then return nil, 'no modDB' end
+  local pat = params and params.pattern and tostring(params.pattern):lower() or nil
+  local out = {}
+  for name, list in pairs(modDB.mods) do
+    if type(list) == 'table' and (not pat or name:lower():find(pat, 1, true)) then
+      table.insert(out, { mod = name, count = #list })
+    end
+  end
+  table.sort(out, function(a, b) return a.mod < b.mod end)
+  return out
+end
+
+-- 完整輸出（僅可序列化純量）：解決 get_stats 需逐一指定欄位、無法列舉的問題。
+function M.get_full_output()
+  local output, err = M.get_main_output()
+  if not output then return nil, err end
+  local out = {}
+  for k, v in pairs(output) do
+    local t = type(v)
+    if t == 'number' or t == 'boolean' or t == 'string' then
+      out[k] = v
+    end
+  end
+  return out
+end
+
+-- 安全淺層序列化（限制深度，僅保留純量與純量表）。
+local function safeSerialize(v, depth)
+  local t = type(v)
+  if t == 'number' or t == 'boolean' or t == 'string' then return v end
+  if t == 'table' and depth > 0 then
+    local o = {}
+    for k, val in pairs(v) do
+      if type(k) == 'string' or type(k) == 'number' then
+        local sv = safeSerialize(val, depth - 1)
+        if sv ~= nil then o[k] = sv end
+      end
+    end
+    return o
+  end
+  return nil
+end
+
+-- 推導 breakdown（CALCS 模式才會建）：回傳指定 stat 的推導內容。
+function M.get_breakdown(statNames)
+  if not build or not build.calcsTab or not build.calcsTab.calcs then return nil, 'build not initialized' end
+  local ok, env = pcall(build.calcsTab.calcs.buildOutput, build, 'CALCS')
+  if not ok or not env then return nil, 'calcs failed' end
+  local bd = env.player and env.player.breakdown
+  if not bd then return nil, 'no breakdown' end
+  local out = {}
+  for _, name in ipairs(statNames or {}) do
+    out[name] = safeSerialize(bd[name], 4)
+  end
+  return out
+end
+
 function M.export_stats(fields)
   local output, err = M.get_main_output()
   if not output then
