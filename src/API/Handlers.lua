@@ -144,8 +144,22 @@ handlers.parse_mods = function(params)
   local out = {}
   for _, line in ipairs(lines) do
     local ok2, modList, extra = pcall(modLib.parseMod, tostring(line))
-    local parsed = ok2 and modList ~= nil and (type(modList) ~= 'table' or #modList > 0)
-    table.insert(out, { line = line, parsed = parsed and true or false, extra = (type(extra) == 'string' and extra) or nil })
+    -- 三態：nonempty modList=parsed（會計算）；空表 {} + extra=unsupported（PoB 認得但不支援計算）；
+    -- modList=nil=unrecognised（沒認出，可能誤譯或非 stat）。
+    local status
+    if not ok2 or modList == nil then
+      status = 'unrecognised'
+    elseif type(modList) == 'table' and #modList == 0 then
+      status = 'unsupported'
+    else
+      status = 'parsed'
+    end
+    table.insert(out, {
+      line = line,
+      parsed = status == 'parsed',
+      status = status,
+      extra = (type(extra) == 'string' and extra) or nil,
+    })
   end
   return { ok = true, results = out }
 end
