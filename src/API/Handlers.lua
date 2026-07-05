@@ -351,6 +351,23 @@ handlers.get_breakdown = function(params)
   return { ok = true, breakdown = res }
 end
 
+-- 匯出 PoB 紋身表（name→sd/targetType），供我方以 sd 比對反查台服紋身的有效英文名。純唯讀、一次性。
+-- 需先載入任一 build（tree.tattoo 隨 spec.tree 初始化）。
+handlers.get_tattoo_table = function(params)
+  if not build or not build.spec or not build.spec.tree or not build.spec.tree.tattoo then
+    return { ok = false, error = 'tattoo table unavailable (load a build first)' }
+  end
+  local out = {}
+  for name, node in pairs(build.spec.tree.tattoo.nodes) do
+    if type(node) == 'table' and node.sd then
+      local sd = {}
+      for _, s in ipairs(node.sd) do if type(s) == 'string' then table.insert(sd, s) end end
+      table.insert(out, { name = name, sd = sd, targetType = node.targetType, overrideType = node.overrideType })
+    end
+  end
+  return { ok = true, tattoos = out }
+end
+
 -- 星團珠寶子圖幾何：匯出 PoB 動態生成的星團節點（座標＋名稱＋stat＋連線＋是否配置），供前端在
 -- 天賦樹上疊畫。這些節點 id 在靜態 passive-tree.json 不存在（動態生成，見 hashes_ex），其 x/y 由
 -- PoB ProcessNode 以與前端 nodePos 相同的軌道公式算好、同座標空間，故可直接疊在基礎樹上對齊。
