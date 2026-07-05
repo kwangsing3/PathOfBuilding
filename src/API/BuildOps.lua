@@ -342,6 +342,21 @@ function M.set_config(params)
   if params.conditionLeeching ~= nil then input.conditionLeeching = params.conditionLeeching; changed = true end
   if params.buffOnslaught ~= nil then input.buffOnslaught = params.buffOnslaught; changed = true end
   if params.enemyIsBoss ~= nil then input.enemyIsBoss = tostring(params.enemyIsBoss); changed = true end
+  -- 通用輸入：params.inputs = { { name=<PoB ConfigOptions var>, kind='boolean'|'number'|'string', value=... }, ... }
+  -- 直接寫入 configTab.input[name]（等同桌面 PoB <Config><Input> 的行為），涵蓋固定白名單外的任意條件
+  -- （如 conditionEnemyShocked / conditionEnemyFireExposure / conditionEnemyBleeding …，由我方 detectConditions 產出）。
+  if type(params.inputs) == 'table' then
+    for _, it in ipairs(params.inputs) do
+      if type(it) == 'table' and type(it.name) == 'string' then
+        local v = it.value
+        if it.kind == 'number' then v = tonumber(v)
+        elseif it.kind == 'string' then v = tostring(v)
+        elseif it.kind == 'boolean' then v = v and true or false end
+        input[it.name] = v
+        changed = true
+      end
+    end
+  end
   if changed and build.configTab.BuildModList then build.configTab:BuildModList() end
   M.get_main_output()
   return true
@@ -441,6 +456,30 @@ function M.add_item_text(params)
   build.buildFlag = true
   M.get_main_output()
   return { id = item.id, name = item.name, slot = params.slotName or item:GetPrimarySlot() }
+end
+
+-- 批次啟用/停用所有有裝備藥劑的欄位（原生匯入預設不啟用；我方策略：藥劑固定常駐）。
+-- 只動有裝備的欄位，空欄位略過。回傳實際切換的欄位數。
+function M.set_all_flasks_active(params)
+  if not build or not build.itemsTab then return nil, 'items not initialized' end
+  local active = not (params and params.active == false) -- 預設 true
+  local set = build.itemsTab.activeItemSet
+  if not set then return nil, 'item set not found' end
+  local count = 0
+  for idx = 1, NUM_FLASK_SLOTS do
+    local slotName = 'Flask ' .. tostring(idx)
+    local slotCtrl = build.itemsTab.slots[slotName]
+    local hasItem = slotCtrl and (slotCtrl.selItemId or 0) > 0
+    if set[slotName] and hasItem then
+      set[slotName].active = active
+      count = count + 1
+    end
+  end
+  if build.itemsTab.PopulateSlots then build.itemsTab:PopulateSlots() end
+  if build.configTab and build.configTab.BuildModList then build.configTab:BuildModList() end
+  build.buildFlag = true
+  M.get_main_output()
+  return true, count
 end
 
 function M.set_flask_active(params)

@@ -236,6 +236,13 @@ handlers.set_flask_active = function(params)
   return { ok = true }
 end
 
+-- 批次啟用所有有裝備的藥劑欄位（JSON 原生匯入路徑用；預設 active=true）。
+handlers.set_all_flasks_active = function(params)
+  local ok2, count = BuildOps.set_all_flasks_active(params or {})
+  if not ok2 then return { ok = false, error = count } end
+  return { ok = true, count = count }
+end
+
 handlers.get_build_info = function(params)
   local info, err = BuildOps.get_build_info()
   if not info then return { ok = false, error = err } end
