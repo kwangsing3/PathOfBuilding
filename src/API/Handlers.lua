@@ -351,6 +351,50 @@ handlers.get_breakdown = function(params)
   return { ok = true, breakdown = res }
 end
 
+-- 星團珠寶子圖幾何：匯出 PoB 動態生成的星團節點（座標＋名稱＋stat＋連線＋是否配置），供前端在
+-- 天賦樹上疊畫。這些節點 id 在靜態 passive-tree.json 不存在（動態生成，見 hashes_ex），其 x/y 由
+-- PoB ProcessNode 以與前端 nodePos 相同的軌道公式算好、同座標空間，故可直接疊在基礎樹上對齊。
+handlers.get_cluster_tree = function(params)
+  if not build or not build.spec then return { ok = false, error = 'build/spec not initialized' } end
+  local spec = build.spec
+  local nodes, edges = {}, {}
+  local seenEdge = {}
+  local function edgeKey(a, b) return a < b and (a .. '_' .. b) or (b .. '_' .. a) end
+  if spec.subGraphs then
+    for _, sg in pairs(spec.subGraphs) do
+      for _, node in ipairs(sg.nodes or {}) do
+        if node.id and node.x and node.y then
+          -- stat 描述：node.sd 為字串陣列（顯示用）。
+          local stats = {}
+          if type(node.sd) == 'table' then
+            for _, s in ipairs(node.sd) do if type(s) == 'string' then table.insert(stats, s) end end
+          end
+          table.insert(nodes, {
+            id = node.id,
+            x = node.x,
+            y = node.y,
+            name = node.dn,
+            stats = stats,
+            kind = node.type, -- Notable / Socket / Mastery / Keystone / nil(小天賦)
+            alloc = spec.allocNodes[node.id] ~= nil,
+          })
+          -- 連線：node.linked 為相連節點物件（可能連到基座 socket 這類基礎樹節點）。
+          for _, lk in ipairs(node.linked or {}) do
+            if lk.id then
+              local k = edgeKey(node.id, lk.id)
+              if not seenEdge[k] then
+                seenEdge[k] = true
+                table.insert(edges, { a = node.id, b = lk.id })
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+  return { ok = true, nodes = nodes, edges = edges }
+end
+
 return {
   handlers = handlers,
   version_meta = version_meta,
