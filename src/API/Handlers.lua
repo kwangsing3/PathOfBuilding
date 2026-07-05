@@ -134,6 +134,22 @@ handlers.load_build_json = function(params)
   return { ok = true, build_id = 1 }
 end
 
+-- 測一批英文詞綴能否被 PoB ModParser 解析（= 是否會被計算）。params: { lines=[string] }
+-- 回傳每條 { line, parsed=bool, extra=string|nil }。parsed=true 表 PoB 認得並會套用效果。
+handlers.parse_mods = function(params)
+  local lines = params and params.lines
+  if type(lines) ~= 'table' then return { ok = false, error = 'missing lines' } end
+  local modLib = _G.modLib
+  if not modLib or not modLib.parseMod then return { ok = false, error = 'modLib.parseMod unavailable' } end
+  local out = {}
+  for _, line in ipairs(lines) do
+    local ok2, modList, extra = pcall(modLib.parseMod, tostring(line))
+    local parsed = ok2 and modList ~= nil and (type(modList) ~= 'table' or #modList > 0)
+    table.insert(out, { line = line, parsed = parsed and true or false, extra = (type(extra) == 'string' and extra) or nil })
+  end
+  return { ok = true, results = out }
+end
+
 handlers.get_stats = function(params)
   local fields = params and params.fields or nil
   local stats, err = BuildOps.export_stats(fields)
